@@ -12,8 +12,10 @@ import sys
 import os 
 import re 
 import datetime
-
+from collections import namedtuple
 from time import sleep
+
+collections_entrada = namedtuple('Entrada', 'id_entrada unidade_entrada quantidade_entrada data_entrada lote_entrada vencimento id_produto')
 
 class Excel:
     '''
@@ -142,17 +144,15 @@ class Produtos(Excel):
                     
                     print(f'Codigo {codigo} | Produto: {nome} cadastrado com sucesso !')
                     sleep(0.1)        
-            
-            # Consulta
+
             conn.close()
     
     class Meta:
         my_atributte_bd = conn.query(banco_Produto).order_by(banco_Produto.id_produto).all()
 
 class Entradas:
-
     def __init__(self) -> None:
-        pass 
+        self.entradas = []     
 
     def conversao_data(self, data_vencimento:str):
         '''Insira ambas as datas como str com a seguinte formatação:
@@ -191,7 +191,7 @@ class Entradas:
         consulta = conn.query(banco_Produto).filter_by(id_produto = self.id_selecionado).all()
         for i in consulta:
             print(f'Produto: {i.nome_produto} | Unidade: {i.unidade_produto}')
-        quantidade = int(input('Qual a quantidade de entrada para o produto e unidade acima: '))
+        quantidade = int(input(f'Qual a quantidade de entrada em {i.unidade_produto} para o produto acima: '))
         self.quantidade = quantidade
 
     def lote_entrada(self, lote):
@@ -201,7 +201,8 @@ class Entradas:
         consulta = conn.query(banco_Produto).filter_by(id_produto = self.id_selecionado).all()
         for c in consulta:
             try:
-                entrada = banco_Entradas(
+                entrada = \
+                    banco_Entradas(
                     unidade_entrada = c.unidade_produto,
                     quantidade_entrada = self.quantidade,
                     data_entrada = datetime.datetime.today(),
@@ -210,20 +211,48 @@ class Entradas:
                     id_produto = self.id_selecionado
                 )
                 conn.add(entrada)
-                conn.commit()
-                conn.close()
-                print(f'Entrada realizada!')
+                conn.commit()                
+                # join_entrada_produto = conn.query(
+                #     banco_Entradas.id_entrada,
+                #     banco_Produto.codigo_produto,
+                #     banco_Produto.nome_produto,
+                # ).join(
+                #     banco_Produto,
+                #     banco_Produto.id_produto == banco_Entradas.id_produto
+                # ).filter_by(
+                #     id_produto = self.id_selecionado
+                # ).all()
 
+                dict_data_for_estoque = {
+                    'codigo_produto':'', # S
+                    'nome_produto':'', # S
+                    'unidade_produto':'', # N
+                    'quantidade_produto':'', # N 
+                    'data_entrada':'', # N
+                    'lote_entrada':'', # N
+                    'vencimento_produto':'', # N
+                    'id_entrada':'' # S
+                }
+
+                # self.registro_estoque(**dict_data_for_estoque)
+                conn.close()
+                
+                print(f'Entrada realizada!')
                 break
             except:
                 raise TypeError('Erro ao introduzir dados a Tabela de Entradas')
 
-class Estoque:
-    pass 
+    def registro_estoque(self, **kwargs):
+        self.dados = kwargs
+        keys_data = [value for value in self.dados.keys()] 
+        values_data = [value for value in self.dados.values()]
+
+
 
 class Saida(Excel):
+
     def __init__(self, nome_arquivo: str, **columns_select: dict):
-        super().__init__(nome_arquivo, **columns_select)
+        super().__init__(nome_arquivo, **columns_select) 
 
 
 
