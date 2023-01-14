@@ -63,7 +63,6 @@ if __name__ == '__main__':
         }
     saidas = app.Saida('Pedidos_Itens.xls', **columns_saidas)
 
-
     join_entrada_produto = app.conn.query(
                     app.banco_Entradas.id_entrada,
                     app.banco_Produto.codigo_produto,
@@ -72,7 +71,9 @@ if __name__ == '__main__':
                 ).join(
                     app.banco_Produto,
                     app.banco_Produto.id_produto == app.banco_Entradas.id_produto
-                ).filter_by(id_produto = 21).all()
+                ).filter_by(
+                    id_produto = 21
+                ).all()
 
 
     for consulta in join_entrada_produto:
