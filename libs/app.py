@@ -299,25 +299,34 @@ class Saida(Excel):
     def __init__(self, nome_arquivo: str, **columns_select: dict):
         super().__init__(nome_arquivo, **columns_select)
     
+
+    def consulta_estoque(self, codigo_produto):
+        consulta_join = conn.query(
+        banco_Entradas.id_produto,
+        func.sum(banco_Entradas.quantidade_entrada*banco_Entradas.quantidade_caixa_master).label("Total"),
+        banco_Produto.nome_produto
+        ).join(
+            banco_Produto,
+            banco_Produto.id_produto == banco_Entradas.id_produto
+        ).filter_by(
+            codigo_produto = codigo_produto
+        ).all()
+
+        return consulta_join
+
     def consulta_existencia(self):
 
         consulta_items = np.array(self.filter_frame()).T
-
-        produtos = consulta_items[4]
+        # Verificar a sequencia de entrada
+        produtos = consulta_items[8]
+        
+        print(produtos)
         quantidades = consulta_items[3]
         unidades = consulta_items[6]
 
         for produto, quantidade, unidade in zip(produtos, quantidades, unidades):
+            consulta = self.consulta_estoque(produto)
 
-            join_consulta = conn.query(
-                banco_Estoque.id_estoque, 
-                banco_Produto.id_produto,
-                banco_Produto.nome_produto
-                ).join(
-                    banco_Produto,
-                    banco_Produto.id_produto == banco_Estoque.id_produto
-                ).filter_by(
-                    nome_produto = produto
-                ).all()
-            if join_consulta:
-                print(f'Produto: {join_consulta[0].nome_produto} Unidade: {unidade} Quantidade de Saída: {quantidade}')
+            if consulta[0].Total != None:
+                print(consulta)
+

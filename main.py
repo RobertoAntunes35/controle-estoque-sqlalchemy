@@ -66,5 +66,22 @@ if __name__ == '__main__':
     # entrada()
 
     # Reliazar Saída
-    saidas.produto_em_estoque(254)
+    # saidas.produto_em_estoque(254)
+
     
+    # consulta_join = app.conn.query(
+    #     app.banco_Entradas.id_produto,
+    #     app.func.sum(app.banco_Entradas.quantidade_entrada*app.banco_Entradas.quantidade_caixa_master).label("Total"),
+    #     app.banco_Produto.nome_produto
+    #     ).join(
+    #         app.banco_Produto,
+    #         app.banco_Produto.id_produto == app.banco_Entradas.id_produto
+    #     ).filter_by(
+    #         codigo_produto = 10
+    #     ).all()
+    # if consulta_join[0].Total != None:
+    #     print('consulta_join[0].Total')
+    
+    # print(saidas.consulta_estoque(1))
+    
+    saidas.consulta_existencia()
