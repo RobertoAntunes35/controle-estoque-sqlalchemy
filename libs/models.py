@@ -47,6 +47,7 @@ class Entradas(Base):
     id_entrada = Column(Integer, nullable = False, primary_key = True,autoincrement = True)
     unidade_entrada = Column(String(45), nullable=False)
     quantidade_entrada = Column(Integer, nullable=False)
+    quantidade_caixa_master = Column(Integer, nullable = False)
     data_entrada = Column(DateTime, nullable=False)
     lote_entrada = Column(String(45), nullable=False)
     vencimento_produto = Column(DateTime, nullable=False)
@@ -71,6 +72,7 @@ class Estoque(Base):
 
     # Foreign Key
     id_entrada = Column(Integer, nullable = False)
+    id_produto = Column(Integer, nullable = False)
 
     def __repr__(self):
         return f'Fornecedor: {self.nome_produto}'
@@ -87,4 +89,4 @@ class Saida(Base):
     id_estoque = Column(Integer, nullable = False)
 
     def __repr__(self):
-        return f'Fornecedor: {self.quantidade_saida}'
+        return f'ID_produto: {self.id_produto} | Quantidade Saída: {self.quantidade_saida} '

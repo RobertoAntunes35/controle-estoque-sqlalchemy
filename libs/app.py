@@ -111,6 +111,13 @@ class Fornecedores(Excel):
     class Meta:
         my_atributte_bd = conn.query(banco_Fornecedores).order_by(banco_Fornecedores.codigo_fornecedor).all()
 
+
+class Unidades(Excel):
+    def __init__(self, nome_arquivo: str, **columns_select: dict):
+        super().__init__(nome_arquivo, **columns_select)
+
+
+
 class Produtos(Excel):
     def __init__(self, nome_arquivo: str, **columns_select: dict):
         super().__init__(nome_arquivo = nome_arquivo, **columns_select)
@@ -168,6 +175,7 @@ class Entradas:
 
     def buscar_produto(self, codigo_produto:int):
         self.codigo_produto = codigo_produto
+        
         # Procurar o produto selecionado
         lista_ids = []
         
@@ -193,66 +201,116 @@ class Entradas:
             print(f'Produto: {i.nome_produto} | Unidade: {i.unidade_produto}')
         quantidade = int(input(f'Qual a quantidade de entrada em {i.unidade_produto} para o produto acima: '))
         self.quantidade = quantidade
+    
+    def quantidade_caixa_master(self):
+        consulta = conn.query(banco_Produto).filter_by(id_produto = self.id_selecionado).all()
+        for i in consulta:
+            print(f'Produto: {i.nome_produto} | Unidade: {i.unidade_produto}')
+        quantidade = int(input(f'Qual a quantidade do(a) {i.unidade_produto} para o produto acima: '))
+        self.quantidade_caixa = quantidade
+    
 
     def lote_entrada(self, lote):
         self.lote = lote
-    
+
     def __call__(self):
         consulta = conn.query(banco_Produto).filter_by(id_produto = self.id_selecionado).all()
         for c in consulta:
-            try:
-                entrada = \
-                    banco_Entradas(
-                    unidade_entrada = c.unidade_produto,
-                    quantidade_entrada = self.quantidade,
-                    data_entrada = datetime.datetime.today(),
-                    lote_entrada = self.lote,
-                    vencimento_produto = self.vencimento,
-                    id_produto = self.id_selecionado
-                )
-                conn.add(entrada)
-                conn.commit()                
-                # join_entrada_produto = conn.query(
-                #     banco_Entradas.id_entrada,
-                #     banco_Produto.codigo_produto,
-                #     banco_Produto.nome_produto,
-                # ).join(
-                #     banco_Produto,
-                #     banco_Produto.id_produto == banco_Entradas.id_produto
-                # ).filter_by(
-                #     id_produto = self.id_selecionado
-                # ).all()
+            dict_data_for_entradas = {
+                'unidade_entrada':c.unidade_produto,
+                'quantidade_entrada':self.quantidade,
+                'quantidade_caixa_master':self.quantidade_caixa,
+                'data_entrada':datetime.datetime.today(),
+                'lote_entrada':self.lote,
+                'vencimento_produto':self.vencimento,
+                'id_produto':self.id_selecionado
+            }             
+            self.registro_entradas(**dict_data_for_entradas)
 
-                dict_data_for_estoque = {
-                    'codigo_produto':'', # S
-                    'nome_produto':'', # S
-                    'unidade_produto':'', # N
-                    'quantidade_produto':'', # N 
-                    'data_entrada':'', # N
-                    'lote_entrada':'', # N
-                    'vencimento_produto':'', # N
-                    'id_entrada':'' # S
-                }
+            join_entrada_produto = conn.query(
+                banco_Entradas.id_entrada,
+                banco_Produto.codigo_produto,
+                banco_Produto.nome_produto,
+            ).join(
+                banco_Produto,
+                banco_Produto.id_produto == banco_Entradas.id_produto
+            ).filter_by(
+                id_produto = self.id_selecionado
+            ).all()
 
-                # self.registro_estoque(**dict_data_for_estoque)
-                conn.close()
-                
-                print(f'Entrada realizada!')
-                break
-            except:
-                raise TypeError('Erro ao introduzir dados a Tabela de Entradas')
+            dict_data_for_estoque = {
+                'codigo_produto':join_entrada_produto[0].codigo_produto, # S
+                'nome_produto':join_entrada_produto[0].nome_produto, # S
+                'id_entrada':join_entrada_produto[0].id_entrada, # S
+                'unidade_produto':c.unidade_produto, # N
+                'quantidade_produto':self.quantidade, # N 
+                'data_entrada':datetime.datetime.today(), # N
+                'lote_entrada':self.lote, # N
+                'vencimento_produto':self.vencimento, # N
+                'id_produto':self.id_selecionado
+            }
+
+            self.registro_estoque(**dict_data_for_estoque)  
+
+            conn.close()
+            break
 
     def registro_estoque(self, **kwargs):
-        self.dados = kwargs
-        keys_data = [value for value in self.dados.keys()] 
-        values_data = [value for value in self.dados.values()]
+        self.dados_estoque = kwargs
+        
+        estoque = \
+            banco_Estoque(
+                codigo_produto = self.dados_estoque['codigo_produto'],
+                nome_produto = self.dados_estoque['nome_produto'],
+                unidade_produto = self.dados_estoque['unidade_produto'],
+                quantidade_produto = self.dados_estoque['quantidade_produto'],
+                data_entrada = self.dados_estoque['data_entrada'],
+                lote_entrada = self.dados_estoque['lote_entrada'],
+                vencimento_produto = self.dados_estoque['vencimento_produto'],
+                id_entrada = self.dados_estoque['id_entrada'],
+                id_produto = self.dados_estoque['id_produto']
+            )
+        conn.add(estoque)
+        conn.commit()
+        print('Inclusão na tabela ESTOQUE concluída com sucesso')
 
+    def registro_entradas(self, **kwargs):
+        self.dados_entrada = kwargs
 
+        entradas = \
+            banco_Entradas(
+                unidade_entrada = self.dados_entrada['unidade_entrada'],
+                quantidade_entrada = self.dados_entrada['quantidade_entrada'],
+                quantidade_caixa_master = self.dados_entrada['quantidade_caixa_master'],
+                data_entrada = self.dados_entrada['data_entrada'],
+                lote_entrada = self.dados_entrada['lote_entrada'],
+                vencimento_produto = self.dados_entrada['vencimento_produto'],
+                id_produto = self.dados_entrada['id_produto'],
+            )
+
+        conn.add(entradas)
+        conn.commit()
+        print('Inclusão na tabela ENTRADAS concluída com sucesso')
 
 class Saida(Excel):
 
     def __init__(self, nome_arquivo: str, **columns_select: dict):
-        super().__init__(nome_arquivo, **columns_select) 
+        super().__init__(nome_arquivo, **columns_select)
+    
+    def consulta_produto_estoque(self, id_produto):
+        self.id_produto = id_produto
+        
+        consulta = conn.query(banco_Estoque).filter_by(id_produto = self.id_produto).all()
+        if consulta:
+            # Id do produto existe
+            pass 
+
+
+    
+
+    
+
+    
 
 
 
