@@ -44,7 +44,6 @@ if __name__ == '__main__':
     entrada = app.Entradas()
     saidas = app.Saida(nome_arquivo= 'Pedidos_Itens.xls', **columns_saidas)
 
-
     # Instânciar o Objeto
 
     # Encontrar o produto
