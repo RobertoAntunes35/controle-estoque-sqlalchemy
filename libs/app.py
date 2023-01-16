@@ -15,6 +15,8 @@ import datetime
 from collections import namedtuple
 from time import sleep
 
+from sqlalchemy import func
+
 collections_entrada = namedtuple('Entrada', 'id_entrada unidade_entrada quantidade_entrada data_entrada lote_entrada vencimento id_produto')
 
 class Excel:
@@ -148,7 +150,7 @@ class Produtos(Excel):
 
                     conn.add(produto)
                     conn.commit()
-                    
+    
                     print(f'Codigo {codigo} | Produto: {nome} cadastrado com sucesso !')
                     sleep(0.1)        
 
@@ -209,7 +211,6 @@ class Entradas:
         quantidade = int(input(f'Qual a quantidade do(a) {i.unidade_produto} para o produto acima: '))
         self.quantidade_caixa = quantidade
     
-
     def lote_entrada(self, lote):
         self.lote = lote
 
@@ -292,48 +293,31 @@ class Entradas:
         conn.commit()
         print('Inclusão na tabela ENTRADAS concluída com sucesso')
 
+
 class Saida(Excel):
 
     def __init__(self, nome_arquivo: str, **columns_select: dict):
         super().__init__(nome_arquivo, **columns_select)
     
-    def consulta_produto_estoque(self, id_produto):
-        self.id_produto = id_produto
-        
-        consulta = conn.query(banco_Estoque).filter_by(id_produto = self.id_produto).all()
-        if consulta:
-            # Id do produto existe
-            pass 
+    def consulta_existencia(self):
 
+        consulta_items = np.array(self.filter_frame()).T
 
-    
+        produtos = consulta_items[4]
+        quantidades = consulta_items[3]
+        unidades = consulta_items[6]
 
-    
+        for produto, quantidade, unidade in zip(produtos, quantidades, unidades):
 
-    
-
-
-
-    
-
-
-    
-    
-
-
-
-
-
-
-
-
-
-
-    
-
-
-        
-
-
-
-
+            join_consulta = conn.query(
+                banco_Estoque.id_estoque, 
+                banco_Produto.id_produto,
+                banco_Produto.nome_produto
+                ).join(
+                    banco_Produto,
+                    banco_Produto.id_produto == banco_Estoque.id_produto
+                ).filter_by(
+                    nome_produto = produto
+                ).all()
+            if join_consulta:
+                print(f'Produto: {join_consulta[0].nome_produto} Unidade: {unidade} Quantidade de Saída: {quantidade}')

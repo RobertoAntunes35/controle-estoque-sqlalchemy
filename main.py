@@ -47,25 +47,24 @@ if __name__ == '__main__':
     # Instânciar o Objeto
 
     # Encontrar o produto
-    entrada.buscar_produto(codigo_produto=130)
+    # entrada.buscar_produto(codigo_produto=130)
     
     # Definir a quantidade
-    entrada.quantidade_entrada()    
+    # entrada.quantidade_entrada()    
     
     # Definir a quantidade da caixa
-    entrada.quantidade_caixa_master()
+    # entrada.quantidade_caixa_master()
 
     # Converter data de vencimento de str para datetime
-    data_vencimento = '2023-02-01'
-    entrada.conversao_data(data_vencimento=data_vencimento)
+    # data_vencimento = '2023-02-01'
+    # entrada.conversao_data(data_vencimento=data_vencimento)
 
     # Definir o Lote
-    entrada.lote_entrada('20261001ABX')
+    # entrada.lote_entrada('20261001ABX')
 
     # Realizar a entrada
-    entrada()
+    # entrada()
 
     # Reliazar Saída
-    
-
+    saidas.produto_em_estoque(254)
     
