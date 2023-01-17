@@ -16,6 +16,7 @@ from collections import namedtuple
 from time import sleep
 
 from sqlalchemy import func
+from sqlalchemy import update
 
 collections_entrada = namedtuple('Entrada', 'id_entrada unidade_entrada quantidade_entrada data_entrada lote_entrada vencimento id_produto')
 
@@ -112,13 +113,6 @@ class Fornecedores(Excel):
     # Consulta
     class Meta:
         my_atributte_bd = conn.query(banco_Fornecedores).order_by(banco_Fornecedores.codigo_fornecedor).all()
-
-
-class Unidades(Excel):
-    def __init__(self, nome_arquivo: str, **columns_select: dict):
-        super().__init__(nome_arquivo, **columns_select)
-
-
 
 class Produtos(Excel):
     def __init__(self, nome_arquivo: str, **columns_select: dict):
@@ -293,18 +287,22 @@ class Entradas:
         conn.commit()
         print('Inclusão na tabela ENTRADAS concluída com sucesso')
 
-
 class Saida(Excel):
 
     def __init__(self, nome_arquivo: str, **columns_select: dict):
         super().__init__(nome_arquivo, **columns_select)
-    
 
-    def consulta_estoque(self, codigo_produto):
+    def __repr__(self):
+        pass 
+    def __getitem__(self, index):
+        return super().__getitem__(index)
+
+    def consulta_quantidade_estoque(self, codigo_produto):
         consulta_join = conn.query(
         banco_Entradas.id_produto,
         func.sum(banco_Entradas.quantidade_entrada*banco_Entradas.quantidade_caixa_master).label("Total"),
-        banco_Produto.nome_produto
+        banco_Produto.nome_produto.label("Produto"),
+        banco_Entradas.quantidade_caixa_master.label("Unidade")
         ).join(
             banco_Produto,
             banco_Produto.id_produto == banco_Entradas.id_produto
@@ -314,19 +312,32 @@ class Saida(Excel):
 
         return consulta_join
 
-    def consulta_existencia(self):
+    def atualizacao_estoque(self):
 
         consulta_items = np.array(self.filter_frame()).T
-        # Verificar a sequencia de entrada
-        produtos = consulta_items[8]
         
-        print(produtos)
+        # Verificar a sequencia de entrada
+        produtos = consulta_items[8]        
         quantidades = consulta_items[3]
-        unidades = consulta_items[6]
 
-        for produto, quantidade, unidade in zip(produtos, quantidades, unidades):
-            consulta = self.consulta_estoque(produto)
 
-            if consulta[0].Total != None:
-                print(consulta)
 
+
+        for produto, quantidade in zip(produtos, quantidades):
+            consulta = self.consulta_quantidade_estoque(produto)
+
+
+            if consulta[0]["Total"] != None:
+                quantidade_saida = consulta[0]['Unidade'] * quantidade
+                if quantidade_saida <= consulta[0]["Total"]:
+                    pass 
+
+    def consulta_vencimento(self, id_produto):
+        consulta = conn.query(banco_Entradas) 
+
+    
+
+
+    def __call__(self):
+        pass 
+    

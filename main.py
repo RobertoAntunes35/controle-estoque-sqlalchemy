@@ -46,23 +46,23 @@ if __name__ == '__main__':
 
     # Instânciar o Objeto
 
-    # Encontrar o produto
-    # entrada.buscar_produto(codigo_produto=130)
+    # # Encontrar o produto
+    # entrada.buscar_produto(codigo_produto=254)
     
-    # Definir a quantidade
+    # # Definir a quantidade
     # entrada.quantidade_entrada()    
     
-    # Definir a quantidade da caixa
+    # # Definir a quantidade da caixa
     # entrada.quantidade_caixa_master()
 
-    # Converter data de vencimento de str para datetime
-    # data_vencimento = '2023-02-01'
+    # # Converter data de vencimento de str para datetime
+    # data_vencimento = '2023-01-01'
     # entrada.conversao_data(data_vencimento=data_vencimento)
 
-    # Definir o Lote
+    # # Definir o Lote
     # entrada.lote_entrada('20261001ABX')
 
-    # Realizar a entrada
+    # # Realizar a entrada
     # entrada()
 
     # Reliazar Saída
@@ -83,5 +83,68 @@ if __name__ == '__main__':
     #     print('consulta_join[0].Total')
     
     # print(saidas.consulta_estoque(1))
+
     
-    saidas.consulta_existencia()
+
+    consulta = app.conn.query(app.banco_Estoque).order_by(app.banco_Estoque.vencimento_produto.asc()).filter_by(codigo_produto = 254).all()
+
+    quantidade = 300
+
+    resto = 0
+
+    for c in range(len(consulta)):
+        consulta_ttr = app.conn.query(
+            app.banco_Estoque.id_produto,
+            app.banco_Estoque.nome_produto,
+            app.banco_Estoque.vencimento_produto,
+            app.banco_Estoque.quantidade_produto.label('Total'),
+            app.banco_Entradas.quantidade_caixa_master.label('Unidade')
+            ).join(
+                app.banco_Estoque,
+                app.banco_Entradas.id_entrada == app.banco_Estoque.id_entrada
+            ).order_by(
+                app.banco_Estoque.vencimento_produto
+            ).filter_by(
+                codigo_produto = 254
+            ).offset(c).first()
+        
+        quantidade_total = consulta_ttr.Total * consulta_ttr.Unidade
+
+        consulta_t = app.conn.query(
+            app.banco_Estoque.id_produto, 
+            app.banco_Estoque.quantidade_produto
+            ).filter_by(
+                id_produto = consulta_ttr.id_produto
+            ).offset(c).first()
+
+        print(consulta_t)
+
+        # print(consulta_att)
+        # if resto == 0:
+        #     if retirada >= 0:
+        #         consulta_ttr[0].quantidade_produto = retirada
+
+        #         app.conn.commit()
+        #         app.conn.close()
+                
+        #         print('Quantidade ok %s' % retirada)
+        #         break
+
+        #     elif retirada < 0:
+        #         resto = retirada * -1
+        #         consulta_ttr[0].quantidade_produto = quantidade - resto
+        #         continue 
+        
+        # elif resto != 0:
+            
+        #     if resto > 0:
+        #         consulta_ttr[0].quantidade_produto = consulta_ttr[0].Total - resto
+        #         app.conn.commit()
+        #         app.conn.close()
+        #         print('Quantidade atualizada')
+        #         break  
+        
+        # print(consulta_ttr[0])
+
+            
+            

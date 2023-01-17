@@ -75,7 +75,7 @@ class Estoque(Base):
     id_produto = Column(Integer, nullable = False)
 
     def __repr__(self):
-        return f'Fornecedor: {self.nome_produto}'
+        return f'Produto: {self.nome_produto} | Vencimento: {self.vencimento_produto} | Quantidade {self.quantidade_produto}'
 
 class Saida(Base):
     __tablename__ = 'saida'
