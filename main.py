@@ -44,7 +44,7 @@ if __name__ == '__main__':
     entrada = app.Entradas()
     saidas = app.Saida(nome_arquivo= 'Pedidos_Itens.xls', **columns_saidas)
 
-    # Instânciar o Objeto
+    # # Instânciar o Objeto
 
     # # Encontrar o produto
     # entrada.buscar_produto(codigo_produto=254)
@@ -56,7 +56,7 @@ if __name__ == '__main__':
     # entrada.quantidade_caixa_master()
 
     # # Converter data de vencimento de str para datetime
-    # data_vencimento = '2023-01-01'
+    # data_vencimento = '2023-12-01'
     # entrada.conversao_data(data_vencimento=data_vencimento)
 
     # # Definir o Lote
@@ -86,9 +86,9 @@ if __name__ == '__main__':
 
     
 
-    consulta = app.conn.query(app.banco_Estoque).order_by(app.banco_Estoque.vencimento_produto.asc()).filter_by(codigo_produto = 254).all()
-
-    quantidade = 300
+    consulta = app.conn.query(app.banco_Estoque).order_by(app.banco_Estoque.vencimento_produto).filter_by(codigo_produto = 254).all()
+    print(len(consulta))
+    quantidade_unidade = 54
 
     resto = 0
 
@@ -97,8 +97,10 @@ if __name__ == '__main__':
             app.banco_Estoque.id_produto,
             app.banco_Estoque.nome_produto,
             app.banco_Estoque.vencimento_produto,
+            app.banco_Estoque.codigo_produto,
+            app.banco_Estoque.controle,
             app.banco_Estoque.quantidade_produto.label('Total'),
-            app.banco_Entradas.quantidade_caixa_master.label('Unidade')
+            app.banco_Entradas.quantidade_caixa_master.label('Unidade'),
             ).join(
                 app.banco_Estoque,
                 app.banco_Entradas.id_entrada == app.banco_Estoque.id_entrada
@@ -106,18 +108,86 @@ if __name__ == '__main__':
                 app.banco_Estoque.vencimento_produto
             ).filter_by(
                 codigo_produto = 254
-            ).offset(c).first()
+            ).offset(c).limit(1)
         
-        quantidade_total = consulta_ttr.Total * consulta_ttr.Unidade
+        quantidade_total = consulta_ttr[0]['Total'] * consulta_ttr[0]['Unidade']
 
-        consulta_t = app.conn.query(
-            app.banco_Estoque.id_produto, 
-            app.banco_Estoque.quantidade_produto
-            ).filter_by(
-                id_produto = consulta_ttr.id_produto
-            ).offset(c).first()
+        if resto == 0:
+            # Campo a ser atualizado
+            campo_att = app.conn.query(
+                app.banco_Estoque
+                ).order_by(
+                app.banco_Estoque.vencimento_produto
+                ).filter_by(
+                codigo_produto = consulta_ttr[0].codigo_produto
+                ).offset(c).limit(1).first()
 
-        print(consulta_t)
+            retirada = None
+
+            # Para retirada da unidade
+            if consulta_ttr[0]['Unidade'] == 1 and consulta_ttr[0]['Total'] > 0:
+                retirada = (consulta_ttr[0]['Total'] * consulta_ttr[0]['Unidade']) - quantidade_unidade
+                print(f'Unidade {retirada}')
+            
+            # Para retirada de fardo
+            elif consulta_ttr[0]['Unidade'] != 1 and consulta_ttr[0]['Total'] > 0:
+                retirada = (consulta_ttr[0]['Total']) - (quantidade_unidade / consulta_ttr[0]['Unidade'])
+                print(f'Fardo {retirada}')
+
+            if retirada is None:
+                continue
+                
+            if retirada >= 0:
+                campo_att.quantidade_produto = retirada
+                print(campo_att.quantidade_produto)
+
+                app.conn.add(campo_att)
+                app.conn.commit()
+                app.conn.close()
+                break
+            
+            elif retirada == 0:
+                pass
+                
+
+            elif retirada < 0:
+                pass
+            
+
+
+    app.conn.close()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
         # print(consulta_att)
         # if resto == 0:

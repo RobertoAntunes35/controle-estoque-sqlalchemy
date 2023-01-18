@@ -263,7 +263,7 @@ class Entradas:
                 lote_entrada = self.dados_estoque['lote_entrada'],
                 vencimento_produto = self.dados_estoque['vencimento_produto'],
                 id_entrada = self.dados_estoque['id_entrada'],
-                id_produto = self.dados_estoque['id_produto']
+                id_produto = self.dados_estoque['id_produto'],
             )
         conn.add(estoque)
         conn.commit()
@@ -340,4 +340,7 @@ class Saida(Excel):
 
     def __call__(self):
         pass 
-    
+
+
+if __name__ == '__main__':
+    print('Ok') 

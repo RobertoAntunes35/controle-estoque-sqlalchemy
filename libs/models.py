@@ -69,6 +69,8 @@ class Estoque(Base):
     data_entrada = Column(DateTime, nullable = False)
     lote_entrada = Column(String(45), nullable = False)
     vencimento_produto = Column(DateTime, nullable = False)
+    controle = Column(Boolean, default = True)
+
 
     # Foreign Key
     id_entrada = Column(Integer, nullable = False)
