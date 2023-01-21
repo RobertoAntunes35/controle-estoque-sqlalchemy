@@ -87,10 +87,12 @@ if __name__ == '__main__':
     
 
     consulta = app.conn.query(app.banco_Estoque).order_by(app.banco_Estoque.vencimento_produto).filter_by(codigo_produto = 254).all()
-    print(len(consulta))
-    quantidade_unidade = 54
+    
+    quantidade_unidade = 1584
 
-    resto = 0
+    # 6 estoque
+
+    resto = False
 
     for c in range(len(consulta)):
         consulta_ttr = app.conn.query(
@@ -110,18 +112,12 @@ if __name__ == '__main__':
                 codigo_produto = 254
             ).offset(c).limit(1)
         
+        # Conversão para unidade de venda
         quantidade_total = consulta_ttr[0]['Total'] * consulta_ttr[0]['Unidade']
 
-        if resto == 0:
-            # Campo a ser atualizado
-            campo_att = app.conn.query(
-                app.banco_Estoque
-                ).order_by(
-                app.banco_Estoque.vencimento_produto
-                ).filter_by(
-                codigo_produto = consulta_ttr[0].codigo_produto
-                ).offset(c).limit(1).first()
-
+        
+        if not resto:
+            # Inicio Func 
             retirada = None
 
             # Para retirada da unidade
@@ -133,63 +129,102 @@ if __name__ == '__main__':
             elif consulta_ttr[0]['Unidade'] != 1 and consulta_ttr[0]['Total'] > 0:
                 retirada = (consulta_ttr[0]['Total']) - (quantidade_unidade / consulta_ttr[0]['Unidade'])
                 print(f'Fardo {retirada}')
+            # Fim func RETURN retirada
 
-            if retirada is None:
-                continue
-                
-            if retirada >= 0:
-                campo_att.quantidade_produto = retirada
-                print(campo_att.quantidade_produto)
+            # Campo a ser atualizado
+        campo_att = app.conn.query(
+            app.banco_Estoque
+            ).order_by(
+            app.banco_Estoque.vencimento_produto
+            ).filter_by(
+            codigo_produto = consulta_ttr[0].codigo_produto
+            ).offset(c).limit(1).first()
 
-                app.conn.add(campo_att)
-                app.conn.commit()
-                app.conn.close()
-                break
+        if retirada is None:
+            continue            
+
+        if retirada >= 0 and not resto:
+            campo_att.quantidade_produto = retirada
+            print(campo_att.quantidade_produto)
+
+            app.conn.add(campo_att)
+            app.conn.commit()
+            app.conn.close()
+            break
+
+        if retirada > 0 and resto:
+
+            campo2 = app.conn.query(
+            app.banco_Estoque
+            ).order_by(
+            app.banco_Estoque.vencimento_produto
+            ).filter_by(
+            codigo_produto = consulta_ttr[0].codigo_produto
+            ).offset(c - 1).limit(1).first()
+
+            campo2.quantidade_produto = 0
+            print(campo2.quantidade_produto)
             
-            elif retirada == 0:
-                pass
+            app.conn.add(campo2)
+            app.conn.commit()
+            app.conn.close()
+
+            for i in range(len(consulta)):
+
+                consulta_for_resto = app.conn.query(
+                    app.banco_Estoque.id_produto,
+                    app.banco_Estoque.nome_produto,
+                    app.banco_Estoque.vencimento_produto,
+                    app.banco_Estoque.codigo_produto,
+                    app.banco_Estoque.controle,
+                    app.banco_Estoque.quantidade_produto.label('Total'),
+                    app.banco_Entradas.quantidade_caixa_master.label('Unidade'),
+                    ).join(
+                        app.banco_Estoque,
+                        app.banco_Entradas.id_entrada == app.banco_Estoque.id_entrada
+                    ).order_by(
+                        app.banco_Estoque.vencimento_produto
+                    ).filter_by(
+                        codigo_produto = 254
+                    ).offset(i).limit(1)
+
+            # Para retirada da unidade
+                if consulta_for_resto[0]['Unidade'] == 1 and consulta_for_resto[0]['Total'] > 0:
+                    retirada = retirada * consulta_for_resto[0]['Unidade']
+                    print(f'Unidade {retirada}')
                 
-
-            elif retirada < 0:
-                pass
-            
-
-
-    app.conn.close()
+                # Para retirada de fardo
+                elif consulta_for_resto[0]['Unidade'] != 1 and consulta_for_resto[0]['Total'] > 0:
+                    retirada = (retirada / consulta_for_resto[0]['Unidade'])
+                    print(f'Fardo {retirada}')
+                # Fim func RETURN retirada
 
 
+                campo_att_resto = app.conn.query(
+                app.banco_Estoque
+                ).order_by(
+                app.banco_Estoque.vencimento_produto
+                ).filter_by(
+                codigo_produto = consulta_ttr[0].codigo_produto
+                ).offset(i).limit(1).first()
+
+                if campo_att_resto.quantidade_produto > 0:
+
+                    campo_att_resto.quantidade_produto = campo_att_resto.quantidade_produto - retirada
+                    print(campo_att_resto.quantidade_produto)
+
+                    app.conn.add(campo_att_resto)
+                    app.conn.commit()
+                    app.conn.close()
+                    break
+
+        elif retirada < 0:
+            retirada = retirada * consulta_ttr[0]['Unidade']*-1
+            resto = True
+            continue
+        break
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-        # print(consulta_att)
         # if resto == 0:
         #     if retirada >= 0:
         #         consulta_ttr[0].quantidade_produto = retirada
@@ -215,6 +250,3 @@ if __name__ == '__main__':
         #         break  
         
         # print(consulta_ttr[0])
-
-            
-            
