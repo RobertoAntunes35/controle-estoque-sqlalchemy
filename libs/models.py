@@ -65,7 +65,7 @@ class Estoque(Base):
     codigo_produto = Column(Integer, nullable = False)
     nome_produto = Column(String(100), nullable = False)
     unidade_produto = Column(String(45), nullable = False)
-    quantidade_produto = Column(Integer, nullable = False)
+    quantidade_produto = Column(Float, nullable = False)
     data_entrada = Column(DateTime, nullable = False)
     lote_entrada = Column(String(45), nullable = False)
     vencimento_produto = Column(DateTime, nullable = False)
@@ -83,6 +83,7 @@ class Saida(Base):
     __tablename__ = 'saida'
 
     id_saida = Column(Integer, nullable = False, primary_key = True, autoincrement=True)
+    numero_pedido = Column(Integer, nullable = False, primary_key = True)
     unidade_saida = Column(String(45), nullable = False)
     quantidade_saida = Column(Integer, nullable = False)
     

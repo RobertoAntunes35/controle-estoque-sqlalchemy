@@ -292,54 +292,247 @@ class Saida(Excel):
     def __init__(self, nome_arquivo: str, **columns_select: dict):
         super().__init__(nome_arquivo, **columns_select)
 
+
+    # Adicionar Funcionabilidade
     def __repr__(self):
         pass 
+
     def __getitem__(self, index):
         return super().__getitem__(index)
 
+    # Adicionar Funcionabilidade
+    def __call__(self):
+        pass
+
     def consulta_quantidade_estoque(self, codigo_produto):
         consulta_join = conn.query(
-        banco_Entradas.id_produto,
-        func.sum(banco_Entradas.quantidade_entrada*banco_Entradas.quantidade_caixa_master).label("Total"),
-        banco_Produto.nome_produto.label("Produto"),
-        banco_Entradas.quantidade_caixa_master.label("Unidade")
+            banco_Estoque.id_produto,
+            banco_Produto.nome_produto.label('Produto'),
+            banco_Entradas.quantidade_caixa_master.label('Unidade'),
+            func.sum(banco_Estoque.quantidade_produto*banco_Entradas.quantidade_caixa_master).label('Total')
+        ).join(
+            banco_Entradas,
+            banco_Entradas.id_entrada == banco_Estoque.id_entrada
         ).join(
             banco_Produto,
             banco_Produto.id_produto == banco_Entradas.id_produto
-        ).filter_by(
-            codigo_produto = codigo_produto
-        ).all()
-
+        ).filter_by(codigo_produto = codigo_produto).all()
+        
         return consulta_join
 
-    def atualizacao_estoque(self):
+    def att_tabela(self, codigo_produto, quantidade_unidade):
+        # Consulta atráves do código do produto nesse caso 254 e pega todos os registros da tabela. 
+        consulta = conn.query(banco_Estoque).order_by(banco_Estoque.vencimento_produto).filter_by(codigo_produto = codigo_produto).all()
 
-        consulta_items = np.array(self.filter_frame()).T
+        # Quantidade em Unidade que irá sair
+        quantidade_unidade = quantidade_unidade
+
+        resto = False 
         
-        # Verificar a sequencia de entrada
-        produtos = consulta_items[8]        
-        quantidades = consulta_items[3]
+        # Itera sobre todas as linhas encontradas para o produto 
+        # procurado, sendo nesse caso, o codigo_produto.
+        for c in range(len(consulta)):
+            consulta_ttr = conn.query(
+                banco_Estoque.id_produto,
+                banco_Estoque.nome_produto,
+                banco_Estoque.vencimento_produto,
+                banco_Estoque.codigo_produto,
+                banco_Estoque.controle,
+                banco_Estoque.quantidade_produto.label('Total'),
+                banco_Entradas.quantidade_caixa_master.label('Unidade'),
+                ).join(
+                    banco_Estoque,
+                    banco_Entradas.id_entrada == banco_Estoque.id_entrada
+                ).order_by(
+                    banco_Estoque.vencimento_produto
+                ).filter_by(
+                    codigo_produto = codigo_produto
+                ).offset(c).limit(1)
 
+            # Faz a conversão da quantidade do produto
+            quantidade_total = consulta_ttr[0]['Total'] * consulta_ttr[0]['Unidade']
 
+            if not resto:
+                retirada = None
 
+            # Para retirada da Unidade
+            if consulta_ttr[0]['Unidade'] == 1 and consulta_ttr[0]['Total'] > 0:
+                retirada = (consulta_ttr[0]['Total'] * consulta_ttr[0]['Unidade']) - quantidade_unidade
+                # print(f'Unidade {retirada}')
 
-        for produto, quantidade in zip(produtos, quantidades):
+            # Para retirada de fardo
+            elif consulta_ttr[0]['Unidade'] != 1 and consulta_ttr[0]['Total'] > 0:
+                retirada = (consulta_ttr[0]['Total']) - (quantidade_unidade / consulta_ttr[0]['Unidade'])
+                # print(f'Fardo {retirada}')
+
+            # Campo a ser atualizado
+            campo_att = conn.query(
+                banco_Estoque
+                ).order_by(
+                banco_Estoque.vencimento_produto
+                ).filter_by(
+                codigo_produto = consulta_ttr[0].codigo_produto
+                ).offset(c).limit(1).first()
+
+            # A iteração dentro da tabela, não encontrou produto com quantidade, setando retirada para None
+            if retirada is None:
+                continue
+            
+            # Retirada do produto para o seguinte caso: A quantidade de saída não excede a quantide disponível por linha
+            if retirada >= 0 and not resto:
+                campo_att.quantidade_produto = retirada
+                # print(campo_att.quantidade_produto)
+
+                # Salva os dados
+                conn.add(campo_att)
+                conn.commit()
+                conn.close()
+                break
+
+            # Retirada do produto para o seguinte caso: A quantidade de saída, excede a quantidade disponível por linha
+            if retirada > 0 and resto:
+                campo2 = conn.query(
+                banco_Estoque
+                ).order_by(
+                banco_Estoque.vencimento_produto
+                ).filter_by(
+                codigo_produto = consulta_ttr[0].codigo_produto
+                ).offset(c - 1).limit(1).first()
+
+                # Seta o campo anterior (campo2) para zero e vai para a próxima linha
+                campo2.quantidade_produto = 0
+                
+                # Salva os dados
+                conn.add(campo2)
+                conn.commit()
+                conn.close()
+            
+                # Itera novamente sobre as linhas da tabela, mas nesse caso, para distribuir o resto faltante perante as demais linha
+                for i in range(len(consulta)):
+                    consulta_for_resto = conn.query(
+                        banco_Estoque.id_produto,
+                        banco_Estoque.nome_produto,
+                        banco_Estoque.vencimento_produto,
+                        banco_Estoque.codigo_produto,
+                        banco_Estoque.controle,
+                        banco_Estoque.quantidade_produto.label('Total'),
+                        banco_Entradas.quantidade_caixa_master.label('Unidade'),
+                        ).join(
+                            banco_Estoque,
+                            banco_Entradas.id_entrada == banco_Estoque.id_entrada
+                        ).order_by(
+                            banco_Estoque.vencimento_produto
+                        ).filter_by(
+                            codigo_produto = codigo_produto
+                        ).offset(i).limit(1)
+
+                    # Para retirada da unidade
+                    if consulta_for_resto[0]['Unidade'] == 1 and consulta_for_resto[0]['Total'] > 0:
+                        retirada = retirada * consulta_for_resto[0]['Unidade']
+                        # print(f'Unidade {retirada}')
+                    
+                    # Para retirada de fardo
+                    elif consulta_for_resto[0]['Unidade'] != 1 and consulta_for_resto[0]['Total'] > 0:
+                        retirada = (retirada / consulta_for_resto[0]['Unidade'])
+                        # print(f'Fardo {retirada}')
+
+                    # Campo que será atualizado
+                    campo_att_resto = conn.query(
+                    banco_Estoque
+                    ).order_by(
+                    banco_Estoque.vencimento_produto
+                    ).filter_by(
+                    codigo_produto = consulta_ttr[0].codigo_produto
+                    ).offset(i).limit(1).first()
+
+                    
+                    # Campo da tabela a ser atualizado (campo_att_resto), necessita ser maior que 0
+                    if campo_att_resto.quantidade_produto > 0:
+
+                        # O campo a ser atualizado (campo_att_resto) contém a quantidade necessária para abater a quantidade do produto sem sobrar resto
+                        if campo_att_resto.quantidade_produto - retirada >=0:
+                            campo_att_resto.quantidade_produto = campo_att_resto.quantidade_produto - retirada
+                            # print(campo_att_resto.quantidade_produto)
+                            
+                            # Salva os dados
+                            conn.add(campo_att_resto)
+                            conn.commit()
+                            conn.close()
+                            break
+
+                        # O campo a ser atualizado, não contém a quantidade total do produto, gerando um resto
+                        elif campo_att_resto.quantidade_produto - retirada < 0:
+                            retirada = campo_att_resto.quantidade_produto - retirada
+                            campo_att_resto.quantidade_produto = 0
+
+                            # Salva os dados
+                            conn.add(campo_att_resto)
+                            conn.commit()
+                            conn.close()
+                            retirada = retirada * -1
+                            continue
+            
+            elif retirada < 0:
+                retirada = retirada * consulta_ttr[0]['Unidade'] * -1
+                resto = True
+                continue
+                
+            # Encerrando a função
+            break
+
+    def atualizacao_estoque(self):
+        # Matriz de dados
+        consulta_items = np.array(self.filter_frame()).T        
+
+        # Itens que serão iteráveis
+        codigo_produto = consulta_items[8]        
+        quantidade_produto = consulta_items[3]
+        produto = consulta_items[4]
+        pedido_numero = consulta_items[0]
+
+        for produto, quantidade, nome_produto, numero_pedido in zip(
+            codigo_produto, 
+            quantidade_produto, 
+            produto,
+            pedido_numero
+        ):
+            consulta_join = conn.query(
+                banco_Estoque.id_estoque,
+                banco_Estoque.id_produto,
+                banco_Produto.id_produto,
+            ).join(
+                banco_Produto,
+                banco_Produto.id_produto == banco_Estoque.id_produto
+            ).filter_by(
+                codigo_produto = produto
+            ).first()
+
             consulta = self.consulta_quantidade_estoque(produto)
 
+            if consulta[0]["Total"] != None:                
 
-            if consulta[0]["Total"] != None:
+                # Quantidade de saída em unidade
                 quantidade_saida = consulta[0]['Unidade'] * quantidade
-                if quantidade_saida <= consulta[0]["Total"]:
-                    pass 
 
-    def consulta_vencimento(self, id_produto):
-        consulta = conn.query(banco_Entradas) 
+                if consulta[0]['Total'] >= quantidade_saida:
+                    self.att_tabela(produto, quantidade_saida)
+                    atualizacao = banco_Saida(
+                        numero_pedido = numero_pedido,
+                        unidade_saida = consulta[0]['Unidade'],
+                        quantidade_saida = quantidade_saida,
+                        id_produto = consulta_join.id_produto,
+                        id_estoque = consulta_join.id_estoque
+                    )    
+                    conn.add(atualizacao)
+                    conn.commit()
+                    conn.close()
+                else:
+                    print('Não há quantidade suficiente em estoque')
+            else:
+                print('Produto %s não existe em estoque.' % nome_produto)
 
-    
 
-
-    def __call__(self):
-        pass 
+     
 
 
 if __name__ == '__main__':
