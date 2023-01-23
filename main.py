@@ -44,6 +44,9 @@ if __name__ == '__main__':
     entrada = app.Entradas()
     saidas = app.Saida(nome_arquivo= 'Pedidos_Itens.xls', **columns_saidas)
 
+    print(saidas.consulta_quantidade_estoque(254))
+
+
     # # Instânciar o Objeto
 
     # # Encontrar o produto
@@ -86,14 +89,19 @@ if __name__ == '__main__':
 
     
 
+    
+
+'''
+    # Consulta atráves do código do produto nesse caso 254 e pega todos os registros da tabela. 
     consulta = app.conn.query(app.banco_Estoque).order_by(app.banco_Estoque.vencimento_produto).filter_by(codigo_produto = 254).all()
     
-    quantidade_unidade = 168
 
-    # 6 estoque
+    # Quantidade em unidade que irá sair.
+    quantidade_unidade = 168
 
     resto = False
 
+    # Itera sobre todas as linhas encontradas para o produto procurado, sendo nesse caso, o 254.
     for c in range(len(consulta)):
         consulta_ttr = app.conn.query(
             app.banco_Estoque.id_produto,
@@ -112,11 +120,11 @@ if __name__ == '__main__':
                 codigo_produto = 254
             ).offset(c).limit(1)
         
-        # Conversão para unidade de venda
+        # Faz a conversão da quantidade do produto
         quantidade_total = consulta_ttr[0]['Total'] * consulta_ttr[0]['Unidade']
 
         if not resto:
-            # Inicio Func 
+
             retirada = None
 
             # Para retirada da unidade
@@ -128,9 +136,8 @@ if __name__ == '__main__':
             elif consulta_ttr[0]['Unidade'] != 1 and consulta_ttr[0]['Total'] > 0:
                 retirada = (consulta_ttr[0]['Total']) - (quantidade_unidade / consulta_ttr[0]['Unidade'])
                 print(f'Fardo {retirada}')
-            # Fim func RETURN retirada
 
-            # Campo a ser atualizado
+        # Campo a ser atualizado
         campo_att = app.conn.query(
             app.banco_Estoque
             ).order_by(
@@ -139,20 +146,25 @@ if __name__ == '__main__':
             codigo_produto = consulta_ttr[0].codigo_produto
             ).offset(c).limit(1).first()
 
+        # A iteração dentro da tabela, não encontrou produto com quantidade, setando retirada para None
         if retirada is None:
             continue            
 
+        # Retirada do produto para o seguinte caso: 
+        # A quantidade de saída não excede a quantide disponível por linha
         if retirada >= 0 and not resto:
             campo_att.quantidade_produto = retirada
             print(campo_att.quantidade_produto)
 
+            # Salva os dados
             app.conn.add(campo_att)
             app.conn.commit()
             app.conn.close()
             break
 
+        # Retirada do produto para o seguinte caso: 
+        # A quantidade de saída, excede a quantidade disponível por linha
         if retirada > 0 and resto:
-
             campo2 = app.conn.query(
             app.banco_Estoque
             ).order_by(
@@ -161,18 +173,19 @@ if __name__ == '__main__':
             codigo_produto = consulta_ttr[0].codigo_produto
             ).offset(c - 1).limit(1).first()
 
-            print(campo2.quantidade_produto)
+            # Seta o campo anterior (campo2) para zero e vai para a próxima linha
             campo2.quantidade_produto = 0
-            print(campo2.quantidade_produto)
             
+            # Salva os dados
             app.conn.add(campo2)
             app.conn.commit()
             app.conn.close()
 
 
-
+            # Itera novamente sobre as linhas da tabela, 
+            # mas nesse caso, para distribuir o resto faltante 
+            # perante as demais linha
             for i in range(len(consulta)):
-
                 consulta_for_resto = app.conn.query(
                     app.banco_Estoque.id_produto,
                     app.banco_Estoque.nome_produto,
@@ -190,7 +203,7 @@ if __name__ == '__main__':
                         codigo_produto = 254
                     ).offset(i).limit(1)
 
-            # Para retirada da unidade
+                # Para retirada da unidade
                 if consulta_for_resto[0]['Unidade'] == 1 and consulta_for_resto[0]['Total'] > 0:
                     retirada = retirada * consulta_for_resto[0]['Unidade']
                     print(f'Unidade {retirada}')
@@ -199,10 +212,8 @@ if __name__ == '__main__':
                 elif consulta_for_resto[0]['Unidade'] != 1 and consulta_for_resto[0]['Total'] > 0:
                     retirada = (retirada / consulta_for_resto[0]['Unidade'])
                     print(f'Fardo {retirada}')
-                # Fim func RETURN retirada
 
-
-
+                # Campo que será atualizado
                 campo_att_resto = app.conn.query(
                 app.banco_Estoque
                 ).order_by(
@@ -211,22 +222,29 @@ if __name__ == '__main__':
                 codigo_produto = consulta_ttr[0].codigo_produto
                 ).offset(i).limit(1).first()
 
-
+                
+                # Campo da tabela a ser atualizado (campo_att_resto), necessita ser maior que 0
                 if campo_att_resto.quantidade_produto > 0:
 
+                    # O campo a ser atualizado (campo_att_resto) contém a
+                    # quantidade necessária para abater a quantidade do produto sem sobrar resto
                     if campo_att_resto.quantidade_produto - retirada >=0:
-
                         campo_att_resto.quantidade_produto = campo_att_resto.quantidade_produto - retirada
                         print(campo_att_resto.quantidade_produto)
+                        
+                        # Salva os dados
                         app.conn.add(campo_att_resto)
                         app.conn.commit()
                         app.conn.close()
                         break
 
+                    # O campo a ser atualizado, não contém 
+                    # a quantidade total do produto, gerando um resto
                     elif campo_att_resto.quantidade_produto - retirada < 0:
                         retirada = campo_att_resto.quantidade_produto - retirada
                         campo_att_resto.quantidade_produto = 0
 
+                        # Salva os dados
                         app.conn.add(campo_att_resto)
                         app.conn.commit()
                         app.conn.close()
@@ -237,33 +255,8 @@ if __name__ == '__main__':
             retirada = retirada * consulta_ttr[0]['Unidade'] * -1
             resto = True
             continue
-    
-        break
-        
-
-
-        # if resto == 0:
-        #     if retirada >= 0:
-        #         consulta_ttr[0].quantidade_produto = retirada
-
-        #         app.conn.commit()
-        #         app.conn.close()
-                
-        #         print('Quantidade ok %s' % retirada)
-        #         break
-
-        #     elif retirada < 0:
-        #         resto = retirada * -1
-        #         consulta_ttr[0].quantidade_produto = quantidade - resto
-        #         continue 
-        
-        # elif resto != 0:
             
-        #     if resto > 0:
-        #         consulta_ttr[0].quantidade_produto = consulta_ttr[0].Total - resto
-        #         app.conn.commit()
-        #         app.conn.close()
-        #         print('Quantidade atualizada')
-        #         break  
-        
-        # print(consulta_ttr[0])
+        # Encerrando a função
+        break
+
+'''
