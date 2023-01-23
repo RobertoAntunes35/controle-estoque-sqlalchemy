@@ -88,7 +88,7 @@ if __name__ == '__main__':
 
     consulta = app.conn.query(app.banco_Estoque).order_by(app.banco_Estoque.vencimento_produto).filter_by(codigo_produto = 254).all()
     
-    quantidade_unidade = 1584
+    quantidade_unidade = 168
 
     # 6 estoque
 
@@ -115,7 +115,6 @@ if __name__ == '__main__':
         # Conversão para unidade de venda
         quantidade_total = consulta_ttr[0]['Total'] * consulta_ttr[0]['Unidade']
 
-        
         if not resto:
             # Inicio Func 
             retirada = None
@@ -162,12 +161,15 @@ if __name__ == '__main__':
             codigo_produto = consulta_ttr[0].codigo_produto
             ).offset(c - 1).limit(1).first()
 
+            print(campo2.quantidade_produto)
             campo2.quantidade_produto = 0
             print(campo2.quantidade_produto)
             
             app.conn.add(campo2)
             app.conn.commit()
             app.conn.close()
+
+
 
             for i in range(len(consulta)):
 
@@ -200,6 +202,7 @@ if __name__ == '__main__':
                 # Fim func RETURN retirada
 
 
+
                 campo_att_resto = app.conn.query(
                 app.banco_Estoque
                 ).order_by(
@@ -208,21 +211,35 @@ if __name__ == '__main__':
                 codigo_produto = consulta_ttr[0].codigo_produto
                 ).offset(i).limit(1).first()
 
+
                 if campo_att_resto.quantidade_produto > 0:
 
-                    campo_att_resto.quantidade_produto = campo_att_resto.quantidade_produto - retirada
-                    print(campo_att_resto.quantidade_produto)
+                    if campo_att_resto.quantidade_produto - retirada >=0:
 
-                    app.conn.add(campo_att_resto)
-                    app.conn.commit()
-                    app.conn.close()
-                    break
+                        campo_att_resto.quantidade_produto = campo_att_resto.quantidade_produto - retirada
+                        print(campo_att_resto.quantidade_produto)
+                        app.conn.add(campo_att_resto)
+                        app.conn.commit()
+                        app.conn.close()
+                        break
 
+                    elif campo_att_resto.quantidade_produto - retirada < 0:
+                        retirada = campo_att_resto.quantidade_produto - retirada
+                        campo_att_resto.quantidade_produto = 0
+
+                        app.conn.add(campo_att_resto)
+                        app.conn.commit()
+                        app.conn.close()
+                        retirada = retirada * -1
+                        continue
+            
         elif retirada < 0:
-            retirada = retirada * consulta_ttr[0]['Unidade']*-1
+            retirada = retirada * consulta_ttr[0]['Unidade'] * -1
             resto = True
             continue
+    
         break
+        
 
 
         # if resto == 0:
